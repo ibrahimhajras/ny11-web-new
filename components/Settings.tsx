@@ -1,16 +1,16 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Language, Theme } from '../types';
 
 const Settings: React.FC = () => {
     const { currentUser, language, setLanguage, theme, setTheme, logout, deleteAccount, showNotification, translations } = useAppContext();
     const t = translations[language];
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     const handleDeleteAccount = async () => {
-        if (window.confirm(t.deleteAccountConfirm)) {
-            await deleteAccount();
-        }
+        await deleteAccount();
+        setShowDeleteModal(false);
     };
 
     const handleTestNotification = () => {
@@ -80,11 +80,35 @@ const Settings: React.FC = () => {
                     <button onClick={logout} className="w-full bg-gray-500/10 text-gray-600 dark:text-gray-400 py-4 rounded-2xl font-bold hover:bg-gray-500 hover:text-white transition-all">
                         {t.logout}
                     </button>
-                    <button onClick={handleDeleteAccount} className="w-full bg-red-500/10 text-red-600 dark:text-red-400 py-4 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all">
+                    <button onClick={() => setShowDeleteModal(true)} className="w-full bg-red-500/10 text-red-600 dark:text-red-400 py-4 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all">
                         {t.deleteAccount}
                     </button>
                 </div>
             </div>
+
+            {/* Delete Account Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)}></div>
+                    <div className="relative bg-white dark:bg-dark-card rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden p-6 animate-slide-up border border-white/20">
+                        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                            ⚠️
+                        </div>
+                        <h3 className="text-xl font-bold text-center text-gray-900 dark:text-white mb-2">{t.deleteAccount}</h3>
+                        <p className="text-gray-500 dark:text-gray-400 text-center text-sm mb-6 leading-relaxed">
+                            {t.deleteAccountConfirm}
+                        </p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-3 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                                {t.cancel}
+                            </button>
+                            <button onClick={handleDeleteAccount} className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30">
+                                {t.deleteAccount}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
