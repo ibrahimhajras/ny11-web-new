@@ -4,8 +4,14 @@ import { useAppContext } from '../context/AppContext';
 import { Language, Theme } from '../types';
 
 const Settings: React.FC = () => {
-    const { currentUser, language, setLanguage, theme, setTheme, logout, showNotification, translations } = useAppContext();
+    const { currentUser, language, setLanguage, theme, setTheme, logout, deleteAccount, showNotification, translations } = useAppContext();
     const t = translations[language];
+
+    const handleDeleteAccount = async () => {
+        if (window.confirm(t.deleteAccountConfirm)) {
+            await deleteAccount();
+        }
+    };
 
     const handleTestNotification = () => {
         showNotification({
@@ -67,12 +73,15 @@ const Settings: React.FC = () => {
                 </div>
                 
                 {/* Actions */}
-                <div className="grid md:grid-cols-2 gap-4 pt-4">
+                <div className="grid md:grid-cols-3 gap-4 pt-4">
                      <button onClick={handleTestNotification} className="w-full bg-blue-500/10 text-blue-600 dark:text-blue-400 py-4 rounded-2xl font-bold hover:bg-blue-500 hover:text-white transition-all">
                         {t.testNotification}
                     </button>
-                    <button onClick={logout} className="w-full bg-red-500/10 text-red-600 dark:text-red-400 py-4 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all">
+                    <button onClick={logout} className="w-full bg-gray-500/10 text-gray-600 dark:text-gray-400 py-4 rounded-2xl font-bold hover:bg-gray-500 hover:text-white transition-all">
                         {t.logout}
+                    </button>
+                    <button onClick={handleDeleteAccount} className="w-full bg-red-500/10 text-red-600 dark:text-red-400 py-4 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all">
+                        {t.deleteAccount}
                     </button>
                 </div>
             </div>

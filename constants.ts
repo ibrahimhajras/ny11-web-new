@@ -295,6 +295,9 @@ export const TRANSLATIONS = {
     english: 'English',
     arabic: 'العربية',
     logout: 'Logout',
+    deleteAccount: 'Delete Account',
+    deleteAccountConfirm: 'Are you sure you want to delete your account? This action is permanent and cannot be undone.',
+    accountDeleted: 'Account deleted successfully.',
     testNotification: 'Test Notification',
     
     // Notifications
@@ -557,6 +560,9 @@ export const TRANSLATIONS = {
     english: 'English',
     arabic: 'العربية',
     logout: 'تسجيل الخروج',
+    deleteAccount: 'حذف الحساب',
+    deleteAccountConfirm: 'هل أنت متأكد من رغبتك في حذف حسابك؟ هذا الإجراء نهائي ولا يمكن التراجع عنه.',
+    accountDeleted: 'تم حذف الحساب بنجاح.',
     testNotification: 'اختبار إشعار',
     
     // Notifications

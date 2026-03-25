@@ -89,15 +89,17 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
                                  <img src={currentUser.avatar || `https://i.pravatar.cc/150?u=${currentUser.id}`} alt="User" className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover" />
                                  <i className="o-chevron-down text-[10px] text-gray-500 hidden md:block"></i>
                             </button>
-                            <div className="absolute right-0 rtl:right-auto rtl:left-0 mt-3 w-56 glass-card rounded-2xl shadow-xl py-2 hidden group-hover:block animate-fade-in border border-gray-100 dark:border-gray-800 transform origin-top-right">
-                                <div className="px-4 py-2 border-b dark:border-gray-700">
-                                    <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{currentUser.name}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{currentUser.email}</p>
+                            <div className="absolute right-0 rtl:right-auto rtl:left-0 top-full pt-2 w-56 hidden group-hover:block animate-fade-in transform origin-top-right z-50">
+                                <div className="glass-card rounded-2xl shadow-xl py-2 border border-gray-100 dark:border-gray-800 overflow-hidden">
+                                    <div className="px-4 py-2 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+                                        <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{currentUser.name}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{currentUser.email}</p>
+                                    </div>
+                                    <button onClick={() => setActivePage('settings')} className="block w-full text-left rtl:text-right px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-brand-green/10 hover:text-brand-green transition-colors">{t.settings}</button>
+                                    <button onClick={() => setActivePage('activeChats')} className="block w-full text-left rtl:text-right px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-brand-green/10 hover:text-brand-green transition-colors">{t.activeChats}</button>
+                                    <div className="border-t dark:border-gray-700 my-1"></div>
+                                    <button onClick={logout} className="block w-full text-left rtl:text-right px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">{t.logout}</button>
                                 </div>
-                                <button onClick={() => setActivePage('settings')} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-brand-green/10 hover:text-brand-green transition-colors">{t.settings}</button>
-                                <button onClick={() => setActivePage('activeChats')} className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-brand-green/10 hover:text-brand-green transition-colors">{t.activeChats}</button>
-                                <div className="border-t dark:border-gray-700 my-1"></div>
-                                <button onClick={logout} className="block w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">{t.logout}</button>
                             </div>
                         </div>
                     ) : (

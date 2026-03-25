@@ -15,7 +15,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   onAuthStateChanged, 
-  signOut 
+  signOut,
+  deleteUser 
 } from 'firebase/auth';
 import { 
   doc, setDoc, getDoc, collection, onSnapshot, 
@@ -80,6 +81,7 @@ interface AppContextType {
     deleteKnowledgeItem: (id: string) => Promise<void>;
     getAIResponse: (userQuestion: string) => Promise<string>;
     generatePlanWithAI: (user: User) => Promise<void>;
+    deleteAccount: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -148,6 +150,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                             setCurrentUser(userData);
                             const planDoc = await getDoc(doc(db, "plans", fbUser.uid));
                             if (planDoc.exists()) setPlan(planDoc.data().plan || {});
+                        } else {
+                            // User exists in Auth but not in Firestore (likely due to a half-completed deletion)
+                            // Recreate a minimal document so they can log in and finish the deletion if desired
+                            const phoneStr = fbUser.email?.split('@')[0] || 'Unknown';
+                            const rescueUser: User = { 
+                                id: fbUser.uid, 
+                                name: phoneStr, 
+                                email: fbUser.email || `${phoneStr}@ny11.com`, 
+                                phone: phoneStr, 
+                                role: UserRole.USER 
+                            };
+                            await setDoc(doc(db, "users", fbUser.uid), rescueUser);
+                            setCurrentUser(rescueUser);
+                            
+                            // Let the user know some data was reset
+                            showToast(
+                                language === Language.AR 
+                                ? "تم استعادة حسابك جزئياً بسبب عملية حذف غير مكتملة." 
+                                : "Your account was partially recovered from an incomplete deletion.", 
+                                "error"
+                            );
                         }
                     }
                 } else {
@@ -262,6 +285,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const logout = async () => {
         await signOut(auth);
         setCurrentUser(null);
+    };
+
+    const deleteAccount = async () => {
+        if (!currentUser || currentUser.id === 'guest') return;
+        setIsActionLoading(true);
+        try {
+            const user = auth.currentUser;
+            if (user) {
+                // Delete user data from Firestore
+                await deleteDoc(doc(db, "users", currentUser.id));
+                await deleteDoc(doc(db, "plans", currentUser.id));
+                
+                // Delete Auth user
+                await deleteUser(user);
+                
+                // Reset local state
+                setCurrentUser(null);
+                setPlan({});
+                showToast(translations[language].accountDeleted, "success");
+                
+                // Reload the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            }
+        } catch (error: any) {
+            console.error("Account deletion error:", error);
+            if (error.code === 'auth/requires-recent-login') {
+                 showToast(language === Language.AR ? "لأسباب أمنية، يرجى تسجيل الدخول مرة أخرى لحذف حسابك." : "For security reasons, please log in again to delete your account.", "error");
+                 // Automatically log them out to force a fresh login
+                 logout();
+            } else {
+                 showToast(error.message, "error");
+            }
+        } finally {
+            setIsActionLoading(false);
+        }
     };
 
     const loginAsGuest = () => {
@@ -413,7 +473,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setTheme, addToCart, removeFromCart, clearCart, showToast, updatePlan: (p) => setPlan(p), updateDailyPlan,
             updateQuoteStatus, updateUserProfile, showNotification, dismissNotification, addMarketItem,
             updateMarketItem, deleteMarketItem, addBannerImage, deleteBannerImage, updateBannerImage,
-            updateTranslations, updateSiteConfig, addKnowledgeItem, updateKnowledgeItem, deleteKnowledgeItem, getAIResponse, generatePlanWithAI
+            updateTranslations, updateSiteConfig, addKnowledgeItem, updateKnowledgeItem, deleteKnowledgeItem, getAIResponse, generatePlanWithAI,
+            deleteAccount
         }}>
             {children}
         </AppContext.Provider>
