@@ -1,5 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
+import { DialogConfig } from '../components/CustomDialog';
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
   User, Language, Theme, CartItem, Plan, DailyPlan, QuoteStatus, 
@@ -30,6 +31,7 @@ interface Toast {
     type: 'success' | 'error';
 }
 
+
 interface AppContextType {
     currentUser: User | null;
     users: User[];
@@ -49,6 +51,9 @@ interface AppContextType {
     isLoading: boolean;
     isActionLoading: boolean;
     isLockedOut: boolean;
+    dialog: DialogConfig | null;
+    showDialog: (config: DialogConfig) => void;
+    dismissDialog: () => void;
     login: (phone: string, password?: string) => Promise<boolean>;
     loginAsGuest: () => void;
     logout: () => void;
@@ -107,6 +112,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [isLoading, setIsLoading] = useState(true);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [isLockedOut, setIsLockedOut] = useState(false);
+    const [dialog, setDialog] = useState<DialogConfig | null>(null);
+
+    const showDialog = useCallback((config: DialogConfig) => {
+        setDialog(config);
+    }, []);
+
+    const dismissDialog = useCallback(() => {
+        setDialog(null);
+    }, []);
 
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         const id = Date.now();
@@ -252,11 +266,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             await signInWithEmailAndPassword(auth, email, pass);
             return true;
         } catch (error: any) {
+            const isAR = language === Language.AR;
+
             if (error.code === 'auth/too-many-requests') {
                 setIsLockedOut(true);
                 setTimeout(() => setIsLockedOut(false), 60000);
+                showDialog({
+                    type: 'warning',
+                    title: isAR ? 'محاولات كثيرة جداً' : 'Too Many Attempts',
+                    message: isAR
+                        ? 'لقد تجاوزت الحد المسموح به من محاولات تسجيل الدخول. يرجى الانتظار دقيقة واحدة ثم المحاولة مجدداً.'
+                        : 'You have exceeded the allowed number of login attempts. Please wait 1 minute before trying again.',
+                    confirmLabel: isAR ? 'حسناً' : 'Got it',
+                });
+            } else if (
+                error.code === 'auth/user-not-found' ||
+                error.code === 'auth/invalid-email'
+            ) {
+                showDialog({
+                    type: 'error',
+                    title: isAR ? 'الحساب غير موجود' : 'Account Not Found',
+                    message: isAR
+                        ? 'لا يوجد حساب مرتبط بهذا الرقم. يرجى التحقق من الرقم أو إنشاء حساب جديد.'
+                        : 'No account is linked to this phone number. Please check the number or create a new account.',
+                    confirmLabel: isAR ? 'حسناً' : 'OK',
+                });
+            } else if (error.code === 'auth/wrong-password') {
+                showDialog({
+                    type: 'error',
+                    title: isAR ? 'كلمة المرور غير صحيحة' : 'Wrong Password',
+                    message: isAR
+                        ? 'كلمة المرور التي أدخلتها غير صحيحة. يرجى المحاولة مرة أخرى.'
+                        : 'The password you entered is incorrect. Please try again.',
+                    confirmLabel: isAR ? 'حاول مجدداً' : 'Try Again',
+                });
+            } else {
+                // Covers auth/invalid-credential (Firebase v9+ combined error for wrong phone OR password)
+                showDialog({
+                    type: 'error',
+                    title: isAR ? 'بيانات الدخول غير صحيحة' : 'Invalid Credentials',
+                    message: isAR
+                        ? 'رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التحقق من بياناتك والمحاولة مجدداً.'
+                        : 'The phone number or password is incorrect. Please check your details and try again.',
+                    confirmLabel: isAR ? 'حاول مجدداً' : 'Try Again',
+                });
             }
-            showToast(language === Language.AR ? "بيانات الدخول غير صحيحة" : "Invalid credentials", "error");
             return false;
         } finally {
             setIsActionLoading(false);
@@ -276,7 +330,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setPlan(initialPlan);
             showToast(language === Language.AR ? "تم إنشاء الحساب بنجاح" : "Account created", "success");
         } catch (error: any) {
-            showToast(error.message, "error");
+            const isAR = language === Language.AR;
+            if (
+                error.code === 'auth/email-already-in-use' ||
+                error.code === 'auth/account-exists-with-different-credential'
+            ) {
+                showDialog({
+                    type: 'warning',
+                    title: isAR ? 'رقم الهاتف مسجّل مسبقاً' : 'Phone Number Already Registered',
+                    message: isAR
+                        ? 'هذا الرقم مرتبط بحساب موجود بالفعل. يرجى تسجيل الدخول بدلاً من إنشاء حساب جديد.'
+                        : 'This phone number is already linked to an existing account. Please log in instead of creating a new account.',
+                    confirmLabel: isAR ? 'تسجيل الدخول' : 'Go to Login',
+                });
+            } else {
+                showDialog({
+                    type: 'error',
+                    title: isAR ? 'فشل إنشاء الحساب' : 'Registration Failed',
+                    message: isAR
+                        ? 'حدث خطأ أثناء إنشاء حسابك. يرجى التحقق من بياناتك والمحاولة مجدداً.'
+                        : 'An error occurred while creating your account. Please check your details and try again.',
+                    confirmLabel: isAR ? 'حاول مجدداً' : 'Try Again',
+                });
+            }
         } finally {
             setIsActionLoading(false);
         }
@@ -469,7 +545,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         <AppContext.Provider value={{
             currentUser, users, coaches, language, theme, cart, toasts, plan, notifications,
             isLanguageSelected, marketItems, bannerImages, siteConfig, translations, knowledgeBase, isLoading, isActionLoading,
-            isLockedOut, login, loginAsGuest, logout, register, registerCoach, updateCoach, setLanguage, setIsLanguageSelected,
+            isLockedOut, dialog, showDialog, dismissDialog, login, loginAsGuest, logout, register, registerCoach, updateCoach, setLanguage, setIsLanguageSelected,
             setTheme, addToCart, removeFromCart, clearCart, showToast, updatePlan: (p) => setPlan(p), updateDailyPlan,
             updateQuoteStatus, updateUserProfile, showNotification, dismissNotification, addMarketItem,
             updateMarketItem, deleteMarketItem, addBannerImage, deleteBannerImage, updateBannerImage,

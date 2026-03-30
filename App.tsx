@@ -4,9 +4,10 @@ import { AppProvider, useAppContext } from './context/AppContext';
 import MainApp from './components/MainApp';
 import { UserRole } from './types';
 import Admin from './components/Admin';
+import CustomDialog from './components/CustomDialog';
 
 const AppContent: React.FC = () => {
-    const { currentUser, language, theme, isLoading } = useAppContext();
+    const { currentUser, language, theme, isLoading, dialog, dismissDialog } = useAppContext();
     const [showSplash, setShowSplash] = useState(true);
 
     useEffect(() => {
@@ -24,9 +25,11 @@ const AppContent: React.FC = () => {
         }
     }, [language, theme]);
 
+    const dialogEl = <CustomDialog dialog={dialog} onClose={dismissDialog} isRTL={language === 'ar'} />;
+
     // Priority Check: If we are logged in as Admin, skip everything else
     if (currentUser?.role === UserRole.ADMIN) {
-        return <Admin />;
+        return <>{<Admin />}{dialogEl}</>;
     }
 
     if (showSplash || isLoading) {
@@ -34,7 +37,12 @@ const AppContent: React.FC = () => {
     }
 
     // Default view for users and guests
-    return <MainApp />;
+    return (
+        <>
+            <MainApp />
+            {dialogEl}
+        </>
+    );
 };
 
 const SplashScreen: React.FC = () => (
