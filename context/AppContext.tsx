@@ -5,7 +5,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { 
   User, Language, Theme, CartItem, Plan, DailyPlan, QuoteStatus, 
   Message, MessageSender, UserRole, Goal, Coach, CoachOnboardingData, 
-  Notification, MarketItem, SiteConfig, KnowledgeBaseItem 
+  Notification, MarketItem, SiteConfig, KnowledgeBaseItem, Order 
 } from '../types';
 import { 
   COACHES, MARKET_ITEMS, GOAL_PLANS, TRANSLATIONS, 
@@ -21,7 +21,7 @@ import {
 } from 'firebase/auth';
 import { 
   doc, setDoc, getDoc, collection, onSnapshot, 
-  addDoc, updateDoc, deleteDoc 
+  addDoc, updateDoc, deleteDoc, query, where, orderBy 
 } from 'firebase/firestore';
 import { format } from 'date-fns';
 
@@ -44,6 +44,7 @@ interface AppContextType {
     notifications: Notification[];
     isLanguageSelected: boolean;
     marketItems: MarketItem[];
+    orders: Order[];
     bannerImages: string[];
     siteConfig: SiteConfig;
     translations: typeof TRANSLATIONS;
@@ -66,6 +67,7 @@ interface AppContextType {
     addToCart: (item: CartItem['id']) => void;
     removeFromCart: (itemId: string) => void;
     clearCart: () => void;
+    purchaseCart: () => Promise<void>;
     showToast: (message: string, type: 'success' | 'error') => void;
     updatePlan: (newPlan: Plan) => void;
     updateDailyPlan: (date: string, dailyPlan: DailyPlan) => void;
@@ -105,6 +107,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [plan, setPlan] = useState<Plan>({});
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
+    const [orders, setOrders] = useState<Order[]>([]);
     const [bannerImages, setBannerImages] = useState<string[]>(BANNER_IMAGES);
     const [translations, setTranslations] = useState(TRANSLATIONS);
     const [siteConfig, setSiteConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
@@ -240,6 +243,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             unsubscribeSettings();
         };
     }, []);
+
+    useEffect(() => {
+        if (!currentUser || currentUser.id === 'guest') {
+            setOrders([]);
+            return;
+        }
+
+        const unsubscribeOrders = onSnapshot(
+            query(collection(db, "orders"), where("userId", "==", currentUser.id), orderBy("timestamp", "desc")),
+            (snapshot) => {
+                const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+                setOrders(items);
+            },
+            (err) => console.warn("Orders access restricted:", err.message)
+        );
+
+        return () => unsubscribeOrders();
+    }, [currentUser, language]);
 
     useEffect(() => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) {
@@ -458,7 +479,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const generatePlanWithAI = async (user: User) => {
-        if (!process.env.API_KEY || !user.goal) return;
+        const today = format(new Date(), 'yyyy-MM-dd');
+        
+        // Ensure we always update the state even if AI is unavailable
+        const applyFallback = async () => {
+            const fallbackPlan = { ...plan, [today]: GOAL_PLANS[user.goal || Goal.MAINTENANCE] };
+            if (user.id !== 'guest') {
+                await setDoc(doc(db, "plans", user.id), { plan: fallbackPlan });
+            }
+            setPlan(fallbackPlan);
+        };
+
+        if (!process.env.API_KEY || !user.goal) {
+            await applyFallback();
+            return;
+        }
         
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -482,21 +517,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 }
             });
 
-            const aiPlan = JSON.parse(response.text || '{}') as DailyPlan;
-            const today = format(new Date(), 'yyyy-MM-dd');
+            const text = response.text || '{}';
+            const aiPlan = JSON.parse(text) as DailyPlan;
             const newPlan = { ...plan, [today]: aiPlan };
-            await setDoc(doc(db, "plans", user.id), { plan: newPlan });
+            if (user.id !== 'guest') {
+                await setDoc(doc(db, "plans", user.id), { plan: newPlan });
+            }
             setPlan(newPlan);
         } catch (error) {
             console.error("Plan Generation Error:", error);
-            const today = format(new Date(), 'yyyy-MM-dd');
-            const fallbackPlan = { ...plan, [today]: GOAL_PLANS[user.goal || Goal.MAINTENANCE] };
-            await setDoc(doc(db, "plans", user.id), { plan: fallbackPlan });
-            setPlan(fallbackPlan);
+            await applyFallback();
         }
     };
 
     const clearCart = () => setCart([]);
+
+    const purchaseCart = async () => {
+        if (!currentUser || cart.length === 0) return;
+        setIsActionLoading(true);
+        try {
+            const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const newOrder: Omit<Order, 'id'> = {
+                userId: currentUser.id,
+                items: cart,
+                total,
+                timestamp: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+                status: 'completed'
+            };
+            await addDoc(collection(db, "orders"), newOrder);
+        } catch (error: any) {
+            showToast(error.message, "error");
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
     const showNotification = useCallback((notification: Omit<Notification, 'id'>) => { const id = Date.now(); setNotifications(prev => [...prev, { id, ...notification }]); setTimeout(() => dismissNotification(id), 5000); }, []);
     const dismissNotification = (id: number) => setNotifications(current => current.filter(notif => notif.id !== id));
     
@@ -550,7 +604,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             updateQuoteStatus, updateUserProfile, showNotification, dismissNotification, addMarketItem,
             updateMarketItem, deleteMarketItem, addBannerImage, deleteBannerImage, updateBannerImage,
             updateTranslations, updateSiteConfig, addKnowledgeItem, updateKnowledgeItem, deleteKnowledgeItem, getAIResponse, generatePlanWithAI,
-            deleteAccount
+            deleteAccount, orders, purchaseCart
         }}>
             {children}
         </AppContext.Provider>

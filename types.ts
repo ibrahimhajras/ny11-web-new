@@ -149,6 +149,15 @@ export interface Notification {
     icon?: string;
 }
 
+export interface Order {
+  id: string;
+  userId: string;
+  items: CartItem[];
+  total: number;
+  timestamp: string;
+  status: 'pending' | 'completed' | 'cancelled';
+}
+
 export interface SiteConfig {
     heroImage: string;
     aiApiKey?: string;

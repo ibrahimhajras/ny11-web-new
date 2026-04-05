@@ -10,9 +10,9 @@ import OnboardingAndAuth from './OnboardingAndAuth';
 import { useAppContext } from '../context/AppContext';
 import { TranslationSet } from '../constants';
 import { Theme, Language, Notification } from '../types';
-import { format } from 'date-fns';
+import Orders from './Orders';
 
-type ActivePage = 'dashboard' | 'chat' | 'activeChats' | 'market' | 'stats' | 'settings';
+type ActivePage = 'dashboard' | 'chat' | 'activeChats' | 'market' | 'stats' | 'settings' | 'orders';
 
 const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePage) => void; onLoginClick: () => void }> = ({ activePage, setActivePage, onLoginClick }) => {
     const { language, setLanguage, theme, setTheme, currentUser, logout, translations } = useAppContext();
@@ -28,10 +28,10 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
     };
 
     const navItems = [
-        { id: 'dashboard', label: t.home, icon: 'o-home' },
-        { id: 'chat', label: t.experts, icon: 'o-user-group' },
-        { id: 'market', label: t.market, icon: 'o-shopping-bag' },
-        { id: 'stats', label: t.stats, icon: 'o-chart-bar' },
+        { id: 'dashboard', label: t.home, icon: 'ph ph-house' },
+        { id: 'chat', label: t.experts, icon: 'ph ph-users' },
+        { id: 'market', label: t.market, icon: 'ph ph-shopping-bag' },
+        { id: 'stats', label: t.stats, icon: 'ph ph-chart-bar' },
     ] as const;
 
     const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg>`;
@@ -87,7 +87,7 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
                         <div className="relative group">
                             <button className="flex items-center space-x-2 rtl:space-x-reverse focus:outline-none bg-gray-100 dark:bg-gray-800 pl-1 pr-1 md:pr-3 py-1 rounded-full hover:ring-2 hover:ring-brand-green transition-all">
                                  <img src={currentUser.avatar || `https://i.pravatar.cc/150?u=${currentUser.id}`} alt="User" className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover" />
-                                 <i className="o-chevron-down text-[10px] text-gray-500 hidden md:block"></i>
+                                 <i className="ph ph-caret-down text-[10px] text-gray-500 hidden md:block"></i>
                             </button>
                             <div className="absolute right-0 rtl:right-auto rtl:left-0 top-full pt-2 w-56 hidden group-hover:block animate-fade-in transform origin-top-right z-50">
                                 <div className="glass-card rounded-2xl shadow-xl py-2 border border-gray-100 dark:border-gray-800 overflow-hidden">
@@ -96,6 +96,7 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
                                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{currentUser.email}</p>
                                     </div>
                                     <button onClick={() => setActivePage('settings')} className="block w-full text-left rtl:text-right px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-brand-green/10 hover:text-brand-green transition-colors">{t.settings}</button>
+                                    <button onClick={() => setActivePage('orders')} className="block w-full text-left rtl:text-right px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-brand-green/10 hover:text-brand-green transition-colors">{t.myOrders}</button>
                                     <button onClick={() => setActivePage('activeChats')} className="block w-full text-left rtl:text-right px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-brand-green/10 hover:text-brand-green transition-colors">{t.activeChats}</button>
                                     <div className="border-t dark:border-gray-700 my-1"></div>
                                     <button onClick={logout} className="block w-full text-left rtl:text-right px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">{t.logout}</button>
@@ -190,7 +191,7 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
     );
 };
 
-const Footer: React.FC = () => {
+const Footer: React.FC<{ setActivePage: (page: ActivePage) => void }> = ({ setActivePage }) => {
     const { translations, language } = useAppContext();
     const t = translations[language];
 
@@ -210,24 +211,24 @@ const Footer: React.FC = () => {
                     <div>
                         <h3 className="font-bold text-gray-900 dark:text-white mb-6 uppercase text-xs tracking-wider">{t.appName}</h3>
                         <ul className="space-y-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
-                            <li><a href="#" className="hover:text-brand-green transition-colors">{t.home}</a></li>
-                            <li><a href="#" className="hover:text-brand-green transition-colors">{t.experts}</a></li>
-                            <li><a href="#" className="hover:text-brand-green transition-colors">{t.market}</a></li>
+                            <li><button onClick={() => setActivePage('dashboard')} className="hover:text-brand-green transition-colors">{t.home}</button></li>
+                            <li><button onClick={() => setActivePage('chat')} className="hover:text-brand-green transition-colors">{t.experts}</button></li>
+                            <li><button onClick={() => setActivePage('market')} className="hover:text-brand-green transition-colors">{t.market}</button></li>
+                            <li><button onClick={() => setActivePage('orders')} className="hover:text-brand-green transition-colors">{t.myOrders}</button></li>
                         </ul>
                     </div>
                     <div>
                         <h3 className="font-bold text-gray-900 dark:text-white mb-6 uppercase text-xs tracking-wider">{t.about}</h3>
                         <ul className="space-y-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
-                            <li><a href="#" className="hover:text-brand-green transition-colors">{t.about}</a></li>
-                            <li><a href="#" className="hover:text-brand-green transition-colors">{t.contact}</a></li>
-                            <li><a href="#" className="hover:text-brand-green transition-colors">Blog</a></li>
+                            <li><button onClick={() => setActivePage('dashboard')} className="hover:text-brand-green transition-colors">{t.about}</button></li>
+                            <li><button className="hover:text-brand-green transition-colors">{t.contact}</button></li>
                         </ul>
                     </div>
                     <div>
                         <h3 className="font-bold text-gray-900 dark:text-white mb-6 uppercase text-xs tracking-wider">{t.contact}</h3>
                          <div className="flex space-x-4 rtl:space-x-reverse">
-                             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-500 hover:bg-brand-green hover:text-white transition-all cursor-pointer"><i className="o-camera"></i></div>
-                             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-500 hover:bg-brand-green hover:text-white transition-all cursor-pointer"><i className="o-envelope"></i></div>
+                             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-500 hover:bg-brand-green hover:text-white transition-all cursor-pointer"><i className="ph ph-instagram-logo text-xl"></i></div>
+                             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-500 hover:bg-brand-green hover:text-white transition-all cursor-pointer"><i className="ph ph-envelope text-xl"></i></div>
                          </div>
                     </div>
                 </div>
@@ -303,6 +304,7 @@ const MainApp: React.FC = () => {
             case 'market': return <Market />;
             case 'stats': return <Stats />;
             case 'settings': return <Settings />;
+            case 'orders': return <Orders />;
             default: return <Dashboard />;
         }
     };
@@ -358,20 +360,20 @@ const MainApp: React.FC = () => {
                             <p className="text-xs font-black tracking-tight uppercase whitespace-nowrap">{t.aiNutritionist}</p>
                         </div>
                         
-                        <button 
+                         <button 
                             onClick={handleAIChatToggle}
                             className={`w-14 h-14 md:w-16 md:h-16 bg-brand-green text-white rounded-full shadow-glow flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative`}
                         >
                             <div className="relative">
-                                <i className="o-chat-bubble-left-right text-2xl"></i>
-                                <span className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+                                <i className="ph ph-chats-teardrop text-3xl font-bold"></i>
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-brand-green animate-pulse"></span>
                             </div>
                         </button>
                     </div>
                 )}
             </div>
             
-            <Footer />
+            <Footer setActivePage={setActivePage} />
             <NotificationContainer />
 
             {showAuthModal && (

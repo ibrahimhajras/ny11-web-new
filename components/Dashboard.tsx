@@ -239,23 +239,35 @@ const ProfileBento: React.FC = () => {
 
 const PlanItem: React.FC<{ item: Meal | Exercise; onToggle: () => void, isRtl: boolean; onMealClick: (meal: Meal) => void }> = ({ item, onToggle, isRtl, onMealClick }) => {
     const isExercise = 'duration' in item || 'reps' in item;
+    const itemImage = !isExercise ? (item as Meal).image : null;
 
     const content = (
-        <div className={`group flex items-center justify-between p-4 rounded-2xl mb-3 transition-all duration-300 w-full border ${item.completed ? 'bg-brand-green/10 border-transparent' : 'bg-gray-50 dark:bg-gray-800/50 border-transparent hover:bg-white dark:hover:bg-gray-800 hover:shadow-md'}`}>
-            <div className="flex items-center">
-                <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${item.completed ? 'bg-brand-green scale-110' : 'bg-gray-200 dark:bg-gray-700 group-hover:bg-gray-300'}`}>
-                    {item.completed && <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+        <div className={`group flex items-center justify-between p-4 rounded-[1.5rem] mb-3 transition-all duration-300 w-full border ${item.completed ? 'bg-brand-green/10 border-transparent' : 'bg-white dark:bg-gray-800/40 border-gray-100 dark:border-gray-700/50 hover:bg-white dark:hover:bg-gray-800 hover:shadow-md'}`}>
+            <div className="flex items-center flex-1">
+                <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${item.completed ? 'bg-brand-green scale-110' : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-brand-green/20'}`}>
+                    {item.completed ? (
+                        <i className="ph ph-check text-white font-bold text-lg"></i>
+                    ) : (
+                        <i className="ph ph-plus text-gray-400 group-hover:text-brand-green text-xs"></i>
+                    )}
                 </button>
-                <div className={`mx-4 ${isRtl ? 'text-right' : 'text-left'}`}>
-                    <p className={`font-bold text-gray-800 dark:text-white text-base ${item.completed ? 'line-through opacity-50' : ''}`}>{item.name}</p>
+                
+                {itemImage && (
+                    <div className="w-12 h-12 rounded-xl overflow-hidden mx-3 flex-shrink-0 shadow-sm">
+                        <img src={itemImage} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                )}
+                
+                <div className={`mx-3 flex-1 ${isRtl ? 'text-right' : 'text-left'}`}>
+                    <p className={`font-bold text-gray-800 dark:text-white text-base leading-tight ${item.completed ? 'line-through opacity-50' : ''}`}>{item.name}</p>
                     <p className="text-xs font-medium text-brand-green mt-0.5">
                         {isExercise ? (item as Exercise).duration || (item as Exercise).reps : `${(item as Meal).calories} kcal`}
                     </p>
                 </div>
             </div>
             {!isExercise && !item.completed && (
-                <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
-                     <i className={`o-chevron-right ${isRtl && 'rotate-180'}`}></i>
+                <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
+                     <i className={`ph ph-caret-right ${isRtl && 'transform rotate-180'}`}></i>
                 </div>
             )}
         </div>
@@ -306,12 +318,12 @@ const DailyPlanView: React.FC = () => {
             <div className="glass-card rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-full">
                 {/* Date Navigation */}
                 <div className="flex justify-between items-center mb-10 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-full">
-                    <button onClick={() => setCurrentDate(subDays(currentDate, 1))} className="w-10 h-10 bg-white dark:bg-dark-card rounded-full shadow-sm hover:text-brand-green transition flex items-center justify-center"><i className={`o-chevron-left ${isRtl && 'transform rotate-180'}`}></i></button>
+                    <button onClick={() => setCurrentDate(subDays(currentDate, 1))} className="w-10 h-10 bg-white dark:bg-dark-card rounded-full shadow-sm hover:text-brand-green transition flex items-center justify-center"><i className={`ph ph-caret-left ${isRtl && 'transform rotate-180'}`}></i></button>
                     <div className="text-center">
                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">{t.todaysPlan}</p>
                         <h2 className="text-xl font-black text-gray-800 dark:text-white">{format(currentDate, 'EEEE, MMM d')}</h2>
                     </div>
-                    <button onClick={() => setCurrentDate(addDays(currentDate, 1))} className="w-10 h-10 bg-white dark:bg-dark-card rounded-full shadow-sm hover:text-brand-green transition flex items-center justify-center"><i className={`o-chevron-right ${isRtl && 'transform rotate-180'}`}></i></button>
+                    <button onClick={() => setCurrentDate(addDays(currentDate, 1))} className="w-10 h-10 bg-white dark:bg-dark-card rounded-full shadow-sm hover:text-brand-green transition flex items-center justify-center"><i className={`ph ph-caret-right ${isRtl && 'transform rotate-180'}`}></i></button>
                 </div>
                 
                 <div className="grid md:grid-cols-2 gap-x-8 gap-y-10">

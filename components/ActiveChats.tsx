@@ -52,7 +52,7 @@ const ChatView: React.FC<{ recipient: User | Coach; onBack: () => void }> = ({ r
             onMouseDown={(e) => e.stopPropagation()}
         >
             <header className="flex items-center p-4 border-b dark:border-gray-700 bg-white dark:bg-dark-card sticky top-0 z-10 flex-shrink-0">
-                <button onClick={onBack} className="mr-4"><i className="o-arrow-left"></i></button>
+                <button onClick={onBack} className="mr-4"><i className="ph ph-arrow-left"></i></button>
                 <img src={recipient.avatar || `https://i.pravatar.cc/150?u=${recipient.id}`} alt={recipient.name} className="w-10 h-10 rounded-full mr-3" />
                 <div>
                     <h2 className="font-bold text-lg dark:text-white">{recipient.name}</h2>
@@ -72,7 +72,7 @@ const ChatView: React.FC<{ recipient: User | Coach; onBack: () => void }> = ({ r
             <footer className="p-4 bg-white dark:bg-dark-card border-t dark:border-gray-700 sticky bottom-0 z-10 flex-shrink-0">
                 <div className="flex items-center">
                     <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder={t.typeAMessage} className="flex-1 p-3 rounded-full bg-gray-100 dark:bg-gray-700 border dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-green"/>
-                    <button onClick={handleSend} className="ml-3 bg-brand-green text-brand-green-dark rounded-full w-12 h-12 flex items-center justify-center hover:opacity-90 transition"><i className="o-paper-airplane transform rotate-45"></i></button>
+                    <button onClick={handleSend} className="ml-3 bg-brand-green text-brand-green-dark rounded-full w-12 h-12 flex items-center justify-center hover:opacity-90 transition"><i className="ph ph-paper-plane-tilt transform rotate-45"></i></button>
                 </div>
             </footer>
         </div>
@@ -120,7 +120,7 @@ const ActiveChats: React.FC = () => {
                                 {currentUser?.role === UserRole.COACH ? 'User' : (person as Coach).specialty}
                             </p>
                         </div>
-                        <i className={`o-chevron-right text-gray-400 ${language === 'ar' ? 'transform rotate-180' : ''}`}></i>
+                        <i className={`ph ph-caret-right text-gray-400 ${language === 'ar' ? 'transform rotate-180' : ''}`}></i>
                     </button>
                 ))}
                  {chatList.length === 0 && (

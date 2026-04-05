@@ -220,6 +220,13 @@ export const TRANSLATIONS = {
     market: 'Market',
     stats: 'Statistics',
     settings: 'Settings',
+    myOrders: 'My Orders',
+    orderHistory: 'Order History',
+    orderId: 'Order ID',
+    date: 'Date',
+    status: 'Status',
+    noOrders: 'No orders yet.',
+    backToMarket: 'Back to Market',
     
     // Dashboard
     myProfile: 'My Profile',
@@ -485,6 +492,13 @@ export const TRANSLATIONS = {
     market: 'المتجر',
     stats: 'الإحصائيات',
     settings: 'الإعدادات',
+    myOrders: 'طلباتي',
+    orderHistory: 'سجل الطلبات',
+    orderId: 'رقم الطلب',
+    date: 'التاريخ',
+    status: 'الحالة',
+    noOrders: 'لا يوجد طلبات حالياً.',
+    backToMarket: 'العودة للمتجر',
 
     // Dashboard
     myProfile: 'ملفي الشخصي',

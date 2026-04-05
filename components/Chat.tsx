@@ -126,7 +126,7 @@ export const ChatView: React.FC<{ coach: Partial<Coach>; onBack: () => void; isA
             onMouseDown={(e) => e.stopPropagation()}
         >
             <header className="flex items-center p-6 border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-dark-card/80 backdrop-blur-md sticky top-0 z-10 flex-shrink-0">
-                <button onClick={onBack} className="mr-4 w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 transition"><i className="o-arrow-left"></i></button>
+                <button onClick={onBack} className="mr-4 w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 transition"><i className="ph ph-arrow-left"></i></button>
                 <div className="relative">
                     <img src={coach.avatar || 'https://img.freepik.com/free-vector/graident-ai-robot-vectorart_78370-4114.jpg'} alt={coach.name} className="w-12 h-12 rounded-full mr-3 object-cover border-2 border-white dark:border-gray-700 shadow-sm" />
                     <div className="absolute bottom-0 right-3 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-dark-card"></div>
@@ -180,7 +180,7 @@ export const ChatView: React.FC<{ coach: Partial<Coach>; onBack: () => void; isA
                         disabled={isTyping || !input.trim()} 
                         className="ml-2 bg-brand-green text-white rounded-full w-10 h-10 flex items-center justify-center hover:shadow-glow transition-all transform hover:scale-105 disabled:opacity-50 disabled:transform-none"
                     >
-                        <i className="o-paper-airplane transform rotate-45 text-sm"></i>
+                        <i className="ph ph-paper-plane-tilt transform rotate-45 text-sm"></i>
                     </button>
                 </div>
             </footer>
@@ -195,7 +195,7 @@ const CoachProfileView: React.FC<{ coach: Coach; onBack: () => void; onStartChat
     return (
         <div className="animate-fade-in max-w-4xl mx-auto">
             <button onClick={onBack} className="group flex items-center text-gray-500 font-bold mb-8 hover:text-brand-green transition-colors">
-                <span className="w-8 h-8 rounded-full bg-white dark:bg-dark-card flex items-center justify-center shadow-sm mr-2 group-hover:bg-brand-green group-hover:text-white transition-all"><i className="o-arrow-left"></i></span> 
+                <span className="w-8 h-8 rounded-full bg-white dark:bg-dark-card flex items-center justify-center shadow-sm mr-2 group-hover:bg-brand-green group-hover:text-white transition-all"><i className="ph ph-arrow-left"></i></span> 
                 {t.backToExperts}
             </button>
             
@@ -218,7 +218,7 @@ const CoachProfileView: React.FC<{ coach: Coach; onBack: () => void; onStartChat
                         
                         <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                              <button onClick={onStartChat} className="bg-brand-green text-white px-10 py-4 rounded-full font-bold text-lg hover:shadow-glow transition-all transform hover:-translate-y-1 flex items-center justify-center">
-                                {t.startChat} <i className="o-chat-bubble-oval-left ml-2"></i>
+                                {t.startChat} <i className="ph ph-chat-circle-dots ml-2"></i>
                             </button>
                             <div className="flex items-center justify-center px-6 py-4 bg-gray-50 dark:bg-gray-800 rounded-full">
                                 <span className="font-bold text-gray-900 dark:text-white mr-2">{coach.clientsHelped}+</span>
@@ -380,7 +380,7 @@ const ChatPage: React.FC = () => {
                      <p className="text-gray-500 mt-2 max-w-lg">{t.connectWithExpertDesc}</p>
                 </div>
                 <div className="hidden md:block">
-                    <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Scroll to explore <i className="o-arrow-right inline-block ml-1"></i></span>
+                    <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Scroll to explore <i className="ph ph-arrow-right inline-block ml-1"></i></span>
                 </div>
             </div>
             

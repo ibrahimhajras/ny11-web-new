@@ -4,67 +4,125 @@ import { MarketItem, MarketCategory, NutritionFacts } from '../types';
 import { useAppContext } from '../context/AppContext';
 
 const CartModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-    const { cart, removeFromCart, clearCart, showToast, language, translations } = useAppContext();
+    const { cart, removeFromCart, clearCart, showToast, language, translations, purchaseCart } = useAppContext();
+    const [isSuccess, setIsSuccess] = useState(false);
+    const [lastTotal, setLastTotal] = useState(0);
     const t = translations[language];
+    const isRtl = language === 'ar';
 
     if (!isOpen) return null;
 
     const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    const handleCheckout = () => {
-        showToast('Checkout successful!', 'success');
-        clearCart();
+    const handleCheckout = async () => {
+        setLastTotal(total);
+        setIsSuccess(true);
+        await purchaseCart();
+    };
+
+    const handleClose = () => {
+        if (isSuccess) {
+            clearCart();
+            setIsSuccess(false);
+            setLastTotal(0);
+        }
         onClose();
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end animate-fade-in" onClick={onClose}>
+        <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex ${isRtl ? 'justify-start' : 'justify-end'} animate-fade-in`} onClick={handleClose}>
             <div 
-                className="bg-white dark:bg-dark-card w-full max-w-md h-full shadow-2xl p-6 flex flex-col animate-slide-left transform transition-transform" 
+                className={`bg-white dark:bg-dark-card w-full max-w-md h-full shadow-2xl p-8 flex flex-col transform transition-transform duration-300 ${isRtl ? 'rounded-r-[2.5rem]' : 'rounded-l-[2.5rem]'}`} 
                 onClick={(e) => e.stopPropagation()}
-                style={{animation: 'slideInRight 0.3s ease-out'}}
+                style={{animation: isRtl ? 'slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1)' : 'slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1)'}}
             >
-                <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <h2 className="text-2xl font-black text-gray-800 dark:text-white flex items-center gap-2">
-                        <i className="o-shopping-bag"></i> {t.shoppingCart}
-                    </h2>
-                    <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 transition"><i className="o-x-mark"></i></button>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto space-y-6 pr-2">
-                    {cart.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                            <span className="text-6xl mb-4">🛒</span>
-                            <p>{t.cartIsEmpty}</p>
+                {!isSuccess ? (
+                    <>
+                        <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
+                             <h2 className="text-2xl font-black text-gray-800 dark:text-white flex items-center gap-2">
+                                <i className="ph ph-shopping-bag"></i> {t.shoppingCart}
+                            </h2>
+                            <button onClick={handleClose} className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 transition-colors"><i className="ph ph-x"></i></button>
                         </div>
-                    ) : (
-                        cart.map(item => (
-                            <div key={item.id} className="flex items-center bg-gray-50 dark:bg-gray-800/50 p-3 rounded-2xl">
-                                <img src={item.image} alt={item.name} className="w-20 h-20 rounded-xl object-cover mr-4" />
-                                <div className="flex-1">
-                                    <p className="font-bold text-gray-800 dark:text-white leading-tight mb-1">{item.name}</p>
-                                    <p className="text-sm font-medium text-brand-green">${item.price.toFixed(2)} x {item.quantity}</p>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+                            {cart.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                    <span className="text-7xl mb-6 grayscale opacity-50">🛒</span>
+                                    <p className="font-bold text-lg">{t.cartIsEmpty}</p>
                                 </div>
-                                <button onClick={() => removeFromCart(item.id)} className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition">
-                                    <i className="o-trash"></i>
+                            ) : (
+                                cart.map(item => (
+                                    <div key={item.id} className="flex items-center bg-gray-50 dark:bg-gray-800/40 p-4 rounded-3xl border border-transparent hover:border-brand-green/20 transition-all group">
+                                        <div className="relative">
+                                            <img src={item.image} alt={item.name} className="w-20 h-20 rounded-2xl object-cover mr-4 rtl:mr-0 rtl:ml-4 shadow-sm group-hover:scale-105 transition-transform" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-bold text-gray-800 dark:text-white leading-tight mb-1">{item.name}</p>
+                                            <p className="text-sm font-bold text-brand-green">${item.price.toFixed(2)} x {item.quantity}</p>
+                                        </div>
+                                        <button onClick={() => removeFromCart(item.id)} className="w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
+                                            <i className="ph ph-trash text-lg"></i>
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {cart.length > 0 && (
+                            <div className="mt-8 pt-6 border-t dark:border-gray-800">
+                                <div className="flex justify-between items-center font-black text-3xl mb-8 text-gray-900 dark:text-white">
+                                    <span className="text-lg text-gray-500 uppercase tracking-widest">{t.total}:</span>
+                                    <span>${total.toFixed(2)}</span>
+                                </div>
+                                <button 
+                                    onClick={handleCheckout} 
+                                    className="w-full bg-brand-green text-white py-5 rounded-2xl font-black text-xl hover:shadow-glow transform hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-3"
+                                >
+                                    <i className="ph ph-credit-card"></i>
+                                    {t.checkout}
                                 </button>
                             </div>
-                        ))
-                    )}
-                </div>
-                {cart.length > 0 && (
-                    <div className="mt-8 pt-6 border-t dark:border-gray-800">
-                        <div className="flex justify-between items-center font-black text-2xl mb-6 text-gray-900 dark:text-white">
-                            <span>{t.total}</span>
-                            <span>${total.toFixed(2)}</span>
+                        )}
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
+                        <div className="w-24 h-24 bg-brand-green text-white rounded-full flex items-center justify-center text-5xl mb-8 shadow-glow animate-bounce">
+                            <i className="ph ph-check-circle"></i>
                         </div>
-                        <button onClick={handleCheckout} className="w-full bg-brand-green text-white py-4 rounded-2xl font-bold text-lg hover:shadow-glow hover:-translate-y-1 transition-all">{t.checkout}</button>
+                        <h2 className="text-4xl font-black italic text-gray-900 dark:text-white mb-4 tracking-tighter">SUCCESS!</h2>
+                        <p className="text-gray-500 dark:text-gray-400 text-lg mb-8 leading-relaxed max-w-[280px]">
+                            {isRtl ? 'تم استلام طلبك بنجاح. سنقوم بتجهيزه لك فوراً!' : 'Your order has been received successfully. We are preparing it for you now!'}
+                        </p>
+                        
+                        <div className="w-full bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-dashed border-gray-200 dark:border-gray-700 mb-8">
+                             <div className="flex justify-between mb-4">
+                                <span className="font-bold text-gray-400 uppercase text-xs tracking-wider">Order ID</span>
+                                <span className="font-bold text-gray-800 dark:text-gray-200">#NY-{(Math.random() * 10000).toFixed(0)}</span>
+                             </div>
+                             <div className="h-px bg-gray-200 dark:bg-gray-700 w-full mb-4"></div>
+                             <div className="flex justify-between font-black text-xl text-gray-900 dark:text-white">
+                                <span>{t.total}</span>
+                                <span className="text-brand-green">${lastTotal.toFixed(2)}</span>
+                             </div>
+                        </div>
+
+                        <button 
+                            onClick={handleClose} 
+                            className="w-full bg-gray-900 dark:bg-white dark:text-gray-900 text-white py-5 rounded-2xl font-black text-lg hover:shadow-xl transition-all"
+                        >
+                            {isRtl ? 'العودة للمتجر' : 'Back to Market'}
+                        </button>
                     </div>
                 )}
             </div>
              <style>{`
                 @keyframes slideInRight {
                     from { transform: translateX(100%); }
+                    to { transform: translateX(0); }
+                }
+                @keyframes slideInLeft {
+                    from { transform: translateX(-100%); }
                     to { transform: translateX(0); }
                 }
             `}</style>
@@ -194,7 +252,7 @@ const MarketItemCard: React.FC<{ item: MarketItem; onSelect: (item: MarketItem) 
                     onClick={handleAddToCart}
                     className="absolute bottom-4 right-4 bg-brand-green text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg transform translate-y-20 group-hover:translate-y-0 transition-transform duration-300 hover:bg-white hover:text-brand-green"
                 >
-                    <i className="o-plus text-xl font-bold"></i>
+                    <i className="ph ph-plus text-xl font-bold"></i>
                 </button>
             </div>
             <div className="p-6">
@@ -252,7 +310,7 @@ const Market: React.FC = () => {
                 </div>
                
                 <button onClick={handleCartIconClick} className="relative bg-white dark:bg-dark-card p-4 rounded-2xl shadow-sm hover:shadow-md transition group">
-                    <i className="o-shopping-cart text-2xl text-gray-700 dark:text-white group-hover:text-brand-green transition-colors"></i>
+                    <i className="ph ph-shopping-cart text-2xl text-gray-700 dark:text-white group-hover:text-brand-green transition-colors"></i>
                     {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-sm border-2 border-gray-50 dark:border-dark-bg">{cart.reduce((total, item) => total + item.quantity, 0)}</span>}
                 </button>
             </div>
