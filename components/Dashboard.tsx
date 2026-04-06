@@ -229,8 +229,9 @@ const ProfileBento: React.FC = () => {
                     <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Current Goal</p>
                     <p className="text-gray-800 dark:text-white font-bold text-lg capitalize">{currentUser?.goal?.replace('_', ' ') || 'Maintenance'}</p>
                 </div>
-                <div className="w-16 h-16 rounded-full border-4 border-brand-green flex items-center justify-center">
-                    <span className="text-brand-green font-bold text-sm">BMI {bmi}</span>
+                <div className="w-16 h-16 rounded-full border-4 border-brand-green flex flex-col items-center justify-center text-center leading-none">
+                    <span className="text-brand-green font-bold text-[10px] uppercase">BMI</span>
+                    <span className="text-brand-green font-black text-base">{bmi}</span>
                 </div>
              </div>
         </div>
