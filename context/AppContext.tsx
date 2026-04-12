@@ -554,17 +554,19 @@ ${knowledgeContext}
             setPlan(fallbackPlan);
         };
 
-        if (!process.env.API_KEY || !user.goal) {
+        const googleApiKey = siteConfig.aiApiKey;
+        if (!googleApiKey || !user.goal) {
+            console.warn("AI Plan Generation skipped: Missing API Key in SiteConfig or User Goal");
             await applyFallback();
             return;
         }
         
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const prompt = `Generate a 1-day meal and exercise plan for a user: Name ${user.name}, Age ${user.age}, Weight ${user.weight}kg, Height ${user.height}cm, Goal ${user.goal}. Return ONLY a JSON object of type DailyPlan.`;
+            const ai = new GoogleGenAI({ apiKey: googleApiKey });
+            const prompt = `Generate a 1-day meal and exercise plan for a user: Name ${user.name}, Age ${user.age}, Weight ${user.weight}kg, Height ${user.height}cm, Goal ${user.goal}. Return ONLY a JSON object of type DailyPlan. Respond in ${language === Language.AR ? 'ARABIC' : 'ENGLISH'}.`;
             
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview',
+                model: 'gemini-1.5-flash',
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",
