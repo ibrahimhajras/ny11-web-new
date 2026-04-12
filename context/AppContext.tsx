@@ -460,7 +460,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const deleteKnowledgeItem = async (id: string) => { await deleteDoc(doc(db, "knowledgeBase", id)); showToast('Q&A deleted.', 'success'); };
 
     const getAIResponse = async (userQuestion: string): Promise<string> => {
-        const groqApiKey = (process.env as any).GROQ_API_KEY;
+        const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
         if (!groqApiKey) return language === Language.AR ? "نظام الذكاء الاصطناعي غير متصل حالياً." : "AI system offline.";
         
         try {
