@@ -288,11 +288,6 @@ const MainApp: React.FC = () => {
     }, [currentUser]);
 
     const handleAIChatToggle = () => {
-        if (!currentUser || currentUser.id === 'guest') {
-            showToast(t.loginToContinue, 'error');
-            setShowAuthModal(true);
-            return;
-        }
         setIsAIChatOpen(!isAIChatOpen);
     };
 

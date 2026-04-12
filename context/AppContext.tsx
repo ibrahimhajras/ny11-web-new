@@ -460,21 +460,85 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const deleteKnowledgeItem = async (id: string) => { await deleteDoc(doc(db, "knowledgeBase", id)); showToast('Q&A deleted.', 'success'); };
 
     const getAIResponse = async (userQuestion: string): Promise<string> => {
-        if (!process.env.API_KEY) return language === Language.AR ? "نظام الذكاء الاصطناعي غير متصل." : "AI system offline.";
+        const groqApiKey = (process.env as any).GROQ_API_KEY;
+        if (!groqApiKey) return language === Language.AR ? "نظام الذكاء الاصطناعي غير متصل حالياً." : "AI system offline.";
         
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const t = translations[language];
+            
+            // 1. Coaches Context
+            const coachesContext = coaches.length > 0 
+                ? coaches.map(c => `- ${c.name}: ${c.specialty}. ${c.bio}`).join('\n')
+                : "No specific coaches listed yet.";
+
+            // 2. Market Context
+            const marketContext = marketItems.length > 0
+                ? marketItems.map(i => `- ${i.name} (${i.category}): ${i.price || 'N/A'}$ - ${i.description || ''}`).join('\n')
+                : "No products in the market currently.";
+
+            // 3. Knowledge Base
             const knowledgeContext = knowledgeBase.map(kb => `Q: ${kb.question}\nA: ${kb.answer}`).join('\n\n');
-            const systemInstruction = `You are NY11 AI Coach. Knowledge base:\n${knowledgeContext}\nAnswer based on this or expert health/nutrition advice if not present. Always reply in user's language.`;
-            const response = await ai.models.generateContent({ 
-                model: 'gemini-3-flash-preview', 
-                contents: userQuestion, 
-                config: { systemInstruction } 
+            
+            // 4. About Us and Roadmap
+            const roadmapContext = `
+Roadmap:
+- Q1 Foundation: ${t.q1Title} - ${t.q1Desc}
+- Q2 Integration: ${t.q2Title} - ${t.q2Desc}
+- Q3 AI & Personalization: ${t.q3Title} - ${t.q3Desc}
+- Q4 Community: ${t.q4Title} - ${t.q4Desc}
+`;
+
+            const systemInstruction = `You are NY11 Website Assistant. Your ONLY goal is to answer questions about the NY11 website, its services, team, and products (FAQ).
+            
+### WEBSITE INFORMATION ###
+- Mission: ${t.aboutUsDesc}
+- Specialists/Coaches:
+${coachesContext}
+- Market Products:
+${marketContext}
+${roadmapContext}
+
+### FAQ KNOWLEDGE BASE ###
+${knowledgeContext}
+
+### RESPONSE RULES ###
+1. Use the provided information to answer questions about NY11 ONLY.
+2. If the user asks about experts, mention our coaches by name.
+3. If they ask about meals or drinks, refer to the Market products.
+4. If they ask about the future of the app, use the Roadmap.
+5. If the user asks about personal health advice, recipes, or topics unrelated to NY11, politely decline and steer back to our services.
+6. Always reply in the user's language: ${language === Language.AR ? 'ARABIC' : 'ENGLISH'}.
+7. Be professional, friendly, and helpful. You represent NY11.
+8. Do NOT mention you are an AI from Groq. You are the NY11 Assistant.`;
+
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${groqApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [
+                        { role: 'system', content: systemInstruction },
+                        { role: 'user', content: userQuestion }
+                    ],
+                    temperature: 0.7,
+                    max_completion_tokens: 1024
+                })
             });
-            return response.text || "No response";
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error("Groq API error:", errorData);
+                throw new Error(errorData?.error?.message || "Groq request failed");
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || "No response";
         } catch (error) { 
             console.error("AI interaction error:", error);
-            return "AI Error.";
+            return language === Language.AR ? "حدث خطأ في الاتصال بالمدرب الذكي." : "Error connecting to AI Assistant.";
         }
     };
 

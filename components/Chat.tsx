@@ -354,11 +354,6 @@ const ChatPage: React.FC = () => {
     };
 
     const handleStartChat = () => {
-        if (currentUser?.id === 'guest') {
-            showToast(t.loginToContinue, 'error');
-            logout();
-            return;
-        }
         setIsChatting(true);
     };
 
