@@ -11,13 +11,13 @@ import {
   COACHES, MARKET_ITEMS, GOAL_PLANS, TRANSLATIONS, 
   BANNER_IMAGES, DEFAULT_SITE_CONFIG, DEFAULT_KNOWLEDGE_BASE 
 } from '../constants';
-import { auth, db } from '../lib/firebase';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  onAuthStateChanged, 
+import { auth, db, secondaryAuth } from '../lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
   signOut,
-  deleteUser 
+  deleteUser
 } from 'firebase/auth';
 import { 
   doc, setDoc, getDoc, collection, onSnapshot, 
@@ -61,6 +61,7 @@ interface AppContextType {
     register: (user: Omit<User, 'id' | 'role' | 'avatar' | 'email'>, password?: string) => Promise<void>;
     registerCoach: (data: CoachOnboardingData) => Promise<void>;
     updateCoach: (id: string, data: CoachOnboardingData) => Promise<void>;
+    deleteCoach: (id: string) => Promise<void>;
     setLanguage: (lang: Language) => void;
     setIsLanguageSelected: (isSelected: boolean) => void;
     setTheme: (theme: Theme) => void;
@@ -427,23 +428,95 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const registerCoach = async (data: CoachOnboardingData) => {
+        setIsActionLoading(true);
         try {
-            const email = data.email || `${data.phone}@ny11.com`;
-            const userCredential = await createUserWithEmailAndPassword(auth, email, data.password || "coach123");
-            const newUser: User = { id: userCredential.user.uid, name: data.name, email, phone: data.phone, role: UserRole.COACH, avatar: data.avatar };
-            const newCoach: Coach = { id: userCredential.user.uid, name: data.name, specialty: data.specialty, bio: data.bio, experienceYears: parseInt(data.experienceYears, 10) || 0, clientsHelped: parseInt(data.clientsHelped, 10) || 0, avatar: data.avatar };
-            await setDoc(doc(db, "users", newUser.id), newUser);
-            await setDoc(doc(db, "coaches", newCoach.id), newCoach);
-            showToast(`Coach registered.`, 'success');
-        } catch (error: any) { showToast(error.message, 'error'); }
+            const phone = data.phone.trim();
+            const email = (data.email && data.email.trim()) ? data.email.trim() : `${phone}@ny11.com`;
+            const password = (data.password && data.password.length >= 6) ? data.password : "coach123";
+
+            // Provision the coach's auth credential on a SECONDARY Firebase app
+            // so the admin's primary session is not replaced.
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+            const uid = userCredential.user.uid;
+
+            const newUser: User = {
+                id: uid,
+                name: data.name,
+                email,
+                phone,
+                role: UserRole.COACH,
+                avatar: data.avatar || `https://i.pravatar.cc/150?u=${uid}`
+            };
+            const newCoach: Coach = {
+                id: uid,
+                name: data.name,
+                specialty: data.specialty,
+                bio: data.bio,
+                experienceYears: parseInt(data.experienceYears, 10) || 0,
+                clientsHelped: parseInt(data.clientsHelped, 10) || 0,
+                avatar: data.avatar || `https://i.pravatar.cc/150?u=${uid}`
+            };
+            await setDoc(doc(db, "users", uid), newUser);
+            await setDoc(doc(db, "coaches", uid), newCoach);
+
+            // Detach the coach from the secondary app — the credential is
+            // already persisted on the server and ready for them to sign in.
+            await signOut(secondaryAuth);
+
+            showToast(language === Language.AR ? 'تم إنشاء حساب المدرب وتفعيله' : 'Coach account created and activated', 'success');
+        } catch (error: any) {
+            const isAR = language === Language.AR;
+            if (error.code === 'auth/email-already-in-use') {
+                showToast(isAR ? 'البريد الإلكتروني أو رقم الهاتف مستخدم بالفعل' : 'Email/phone already in use', 'error');
+            } else if (error.code === 'auth/weak-password') {
+                showToast(isAR ? 'كلمة المرور ضعيفة (6 أحرف على الأقل)' : 'Weak password (min 6 chars)', 'error');
+            } else if (error.code === 'auth/invalid-email') {
+                showToast(isAR ? 'البريد الإلكتروني غير صالح' : 'Invalid email', 'error');
+            } else {
+                showToast(error.message || 'Coach registration failed', 'error');
+            }
+        } finally {
+            setIsActionLoading(false);
+        }
     };
 
     const updateCoach = async (id: string, data: CoachOnboardingData) => {
+        setIsActionLoading(true);
         try {
-            await updateDoc(doc(db, "coaches", id), { name: data.name, specialty: data.specialty, bio: data.bio, experienceYears: parseInt(data.experienceYears, 10) || 0, clientsHelped: parseInt(data.clientsHelped, 10) || 0, avatar: data.avatar });
-            await updateDoc(doc(db, "users", id), { name: data.name, phone: data.phone, avatar: data.avatar });
-            showToast(`Coach updated.`, 'success');
-        } catch (error: any) { showToast(error.message, 'error'); }
+            await updateDoc(doc(db, "coaches", id), {
+                name: data.name,
+                specialty: data.specialty,
+                bio: data.bio,
+                experienceYears: parseInt(data.experienceYears, 10) || 0,
+                clientsHelped: parseInt(data.clientsHelped, 10) || 0,
+                avatar: data.avatar
+            });
+            const userPatch: Partial<User> = {
+                name: data.name,
+                phone: data.phone,
+                avatar: data.avatar
+            };
+            if (data.email && data.email.trim()) userPatch.email = data.email.trim();
+            await updateDoc(doc(db, "users", id), userPatch);
+            showToast(language === Language.AR ? 'تم تحديث المدرب' : 'Coach updated', 'success');
+        } catch (error: any) {
+            showToast(error.message, 'error');
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const deleteCoach = async (id: string) => {
+        setIsActionLoading(true);
+        try {
+            await deleteDoc(doc(db, "coaches", id));
+            await deleteDoc(doc(db, "users", id));
+            showToast(language === Language.AR ? 'تم حذف المدرب' : 'Coach removed', 'success');
+        } catch (error: any) {
+            showToast(error.message, 'error');
+        } finally {
+            setIsActionLoading(false);
+        }
     };
 
     const addToCart = (itemId: string) => {
@@ -465,19 +538,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         try {
             const t = translations[language];
-            
-            // 1. Coaches Context
-            const coachesContext = coaches.length > 0 
-                ? coaches.map(c => `- ${c.name}: ${c.specialty}. ${c.bio}`).join('\n')
+
+            // 1. Coaches Context — pulled from live Firestore data, includes
+            // experience and clients-helped numbers so the AI can describe staff.
+            const coachesContext = coaches.length > 0
+                ? coaches.map(c => `- ${c.name} — ${c.specialty}. ${c.experienceYears} years of experience, helped ${c.clientsHelped}+ clients. ${c.bio}`).join('\n')
                 : "No specific coaches listed yet.";
 
-            // 2. Market Context
+            // 2. Market Context — every item with category, price, ingredients,
+            // nutrition snapshot and allergy caution.
             const marketContext = marketItems.length > 0
-                ? marketItems.map(i => `- ${i.name} (${i.category}): ${i.price || 'N/A'}$ - ${i.description || ''}`).join('\n')
+                ? marketItems.map(i => {
+                    const nutrition = i.nutrition
+                        ? ` | Nutrition (per ${i.nutrition.servingSize || 'serving'}): ${i.nutrition.energy || ''} energy, ${i.nutrition.protein || ''} protein, ${i.nutrition.carbs || ''} carbs, ${i.nutrition.fat || ''} fat`
+                        : '';
+                    const ingredients = i.ingredients ? ` | Ingredients: ${i.ingredients}` : '';
+                    const caution = i.caution ? ` | Caution: ${i.caution}` : '';
+                    const summary = i.summary ? ` [${i.summary}]` : '';
+                    return `- ${i.name}${summary} (${i.category}) — $${i.price ?? 'N/A'} — ${i.description || ''}${ingredients}${nutrition}${caution}`;
+                }).join('\n')
                 : "No products in the market currently.";
 
-            // 3. Knowledge Base
-            const knowledgeContext = knowledgeBase.map(kb => `Q: ${kb.question}\nA: ${kb.answer}`).join('\n\n');
+            // 3. Admin-curated Knowledge Base (the AI's training set from the admin panel)
+            const knowledgeContext = knowledgeBase.length > 0
+                ? knowledgeBase.map(kb => `Q: ${kb.question}\nA: ${kb.answer}${kb.keywords?.length ? `\nKeywords: ${kb.keywords.join(', ')}` : ''}`).join('\n\n')
+                : "No FAQ entries available yet.";
             
             // 4. About Us and Roadmap
             const roadmapContext = `
@@ -488,28 +573,34 @@ Roadmap:
 - Q4 Community: ${t.q4Title} - ${t.q4Desc}
 `;
 
-            const systemInstruction = `You are NY11 Website Assistant. Your ONLY goal is to answer questions about the NY11 website, its services, team, and products (FAQ).
-            
+            const systemInstruction = `You are the NY11 Website Assistant. Your ONLY goal is to answer questions about the NY11 website, its team, services, products, and the curated FAQ provided below.
+
 ### WEBSITE INFORMATION ###
+- App Name: ${t.appName}
 - Mission: ${t.aboutUsDesc}
-- Specialists/Coaches:
+
+### SPECIALISTS / COACHES (live from admin) ###
 ${coachesContext}
-- Market Products:
+
+### MARKET / STORE PRODUCTS (live from admin) ###
 ${marketContext}
+
+### ROADMAP ###
 ${roadmapContext}
 
-### FAQ KNOWLEDGE BASE ###
+### ADMIN-CURATED KNOWLEDGE BASE (training material) ###
 ${knowledgeContext}
 
 ### RESPONSE RULES ###
-1. Use the provided information to answer questions about NY11 ONLY.
-2. If the user asks about experts, mention our coaches by name.
-3. If they ask about meals or drinks, refer to the Market products.
-4. If they ask about the future of the app, use the Roadmap.
-5. If the user asks about personal health advice, recipes, or topics unrelated to NY11, politely decline and steer back to our services.
-6. Always reply in the user's language: ${language === Language.AR ? 'ARABIC' : 'ENGLISH'}.
-7. Be professional, friendly, and helpful. You represent NY11.
-8. Do NOT mention you are an AI from Groq. You are the NY11 Assistant.`;
+1. Answer ONLY based on the information above. If a fact is not in the context, say you don't have that information and suggest contacting an NY11 coach.
+2. When the user asks about experts, recommend specific coaches by name and specialty from the list above.
+3. When the user asks about food, drinks, or shopping, refer to the listed Market products with prices.
+4. When the user asks about the future of the app, use the Roadmap.
+5. Always prefer the admin-curated Knowledge Base if a question matches one of those Q&A pairs.
+6. If the user asks for personal medical advice or off-topic content, politely decline and steer back to NY11 services.
+7. Always reply in the user's language: ${language === Language.AR ? 'ARABIC' : 'ENGLISH'}.
+8. Be professional, friendly, and concise. You represent NY11.
+9. Do NOT mention you are an AI from Groq or any provider — you are the NY11 Assistant.`;
 
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
@@ -665,7 +756,7 @@ ${knowledgeContext}
         <AppContext.Provider value={{
             currentUser, users, coaches, language, theme, cart, toasts, plan, notifications,
             isLanguageSelected, marketItems, bannerImages, siteConfig, translations, knowledgeBase, isLoading, isActionLoading,
-            isLockedOut, dialog, showDialog, dismissDialog, login, loginAsGuest, logout, register, registerCoach, updateCoach, setLanguage, setIsLanguageSelected,
+            isLockedOut, dialog, showDialog, dismissDialog, login, loginAsGuest, logout, register, registerCoach, updateCoach, deleteCoach, setLanguage, setIsLanguageSelected,
             setTheme, addToCart, removeFromCart, clearCart, showToast, updatePlan: (p) => setPlan(p), updateDailyPlan,
             updateQuoteStatus, updateUserProfile, showNotification, dismissNotification, addMarketItem,
             updateMarketItem, deleteMarketItem, addBannerImage, deleteBannerImage, updateBannerImage,
