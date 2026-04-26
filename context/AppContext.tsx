@@ -2,14 +2,15 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { DialogConfig } from '../components/CustomDialog';
 import { GoogleGenAI, Type } from "@google/genai";
-import { 
-  User, Language, Theme, CartItem, Plan, DailyPlan, QuoteStatus, 
-  Message, MessageSender, UserRole, Goal, Coach, CoachOnboardingData, 
-  Notification, MarketItem, SiteConfig, KnowledgeBaseItem, Order 
+import {
+  User, Language, Theme, CartItem, Plan, DailyPlan, QuoteStatus,
+  Message, MessageSender, UserRole, Goal, Coach, CoachOnboardingData,
+  Notification, MarketItem, SiteConfig, KnowledgeBaseItem, Order,
+  LabTest, Conversation, PersistentMessage
 } from '../types';
-import { 
-  COACHES, MARKET_ITEMS, GOAL_PLANS, TRANSLATIONS, 
-  BANNER_IMAGES, DEFAULT_SITE_CONFIG, DEFAULT_KNOWLEDGE_BASE 
+import {
+  COACHES, MARKET_ITEMS, GOAL_PLANS, TRANSLATIONS,
+  BANNER_IMAGES, DEFAULT_SITE_CONFIG, DEFAULT_KNOWLEDGE_BASE
 } from '../constants';
 import { auth, db } from '../lib/firebase';
 import { 
@@ -44,6 +45,8 @@ interface AppContextType {
     notifications: Notification[];
     isLanguageSelected: boolean;
     marketItems: MarketItem[];
+    labTests: LabTest[];
+    conversations: Conversation[];
     orders: Order[];
     bannerImages: string[];
     siteConfig: SiteConfig;
@@ -68,6 +71,7 @@ interface AppContextType {
     removeFromCart: (itemId: string) => void;
     clearCart: () => void;
     purchaseCart: () => Promise<void>;
+    purchaseLabTest: (test: LabTest) => Promise<void>;
     showToast: (message: string, type: 'success' | 'error') => void;
     updatePlan: (newPlan: Plan) => void;
     updateDailyPlan: (date: string, dailyPlan: DailyPlan) => void;
@@ -78,6 +82,12 @@ interface AppContextType {
     addMarketItem: (item: Omit<MarketItem, 'id'>) => Promise<void>;
     updateMarketItem: (item: MarketItem) => Promise<void>;
     deleteMarketItem: (itemId: string) => Promise<void>;
+    addLabTest: (test: Omit<LabTest, 'id'>) => Promise<void>;
+    updateLabTest: (test: LabTest) => Promise<void>;
+    deleteLabTest: (id: string) => Promise<void>;
+    sendPersistentMessage: (coachId: string, coachName: string, coachAvatar: string | undefined, text: string) => Promise<void>;
+    sendCoachMessage: (conversationId: string, text: string) => Promise<void>;
+    subscribeToMessages: (conversationId: string, cb: (msgs: PersistentMessage[]) => void) => () => void;
     addBannerImage: (url: string) => void;
     deleteBannerImage: (index: number) => void;
     updateBannerImage: (index: number, url: string) => void;
@@ -107,6 +117,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [plan, setPlan] = useState<Plan>({});
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
+    const [labTests, setLabTests] = useState<LabTest[]>([]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
     const [bannerImages, setBannerImages] = useState<string[]>(BANNER_IMAGES);
     const [translations, setTranslations] = useState(TRANSLATIONS);
@@ -210,20 +222,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             (err) => console.warn("Market access restricted:", err.message)
         );
 
-        const unsubscribeCoaches = onSnapshot(collection(db, "coaches"), 
+        const unsubscribeCoaches = onSnapshot(collection(db, "coaches"),
             (snapshot) => {
                 const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Coach[];
-                setCoaches(items.length > 0 ? items : COACHES);
+                setCoaches(items);
             },
             (err) => console.warn("Coaches access restricted:", err.message)
         );
 
-        const unsubscribeKB = onSnapshot(collection(db, "knowledgeBase"), 
+        const unsubscribeKB = onSnapshot(collection(db, "knowledgeBase"),
             (snapshot) => {
                 const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as KnowledgeBaseItem[];
                 setKnowledgeBase(items.length > 0 ? items : DEFAULT_KNOWLEDGE_BASE);
             },
             (err) => console.warn("Knowledge base access restricted:", err.message)
+        );
+
+        const unsubscribeLabs = onSnapshot(collection(db, "labTests"),
+            (snapshot) => {
+                const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as LabTest[];
+                setLabTests(items);
+            },
+            (err) => console.warn("Lab tests access restricted:", err.message)
         );
 
         const unsubscribeSettings = onSnapshot(doc(db, "settings", "general"), 
@@ -240,6 +260,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             unsubscribeMarket();
             unsubscribeCoaches();
             unsubscribeKB();
+            unsubscribeLabs();
             unsubscribeSettings();
         };
     }, []);
@@ -268,7 +289,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return;
         }
 
-        const unsubscribeUsers = onSnapshot(collection(db, "users"), 
+        const unsubscribeUsers = onSnapshot(collection(db, "users"),
             (snapshot) => {
                 setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[]);
             },
@@ -276,6 +297,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         );
 
         return () => unsubscribeUsers();
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (!currentUser || currentUser.id === 'guest') {
+            setConversations([]);
+            return;
+        }
+        const fieldName = currentUser.role === UserRole.COACH ? 'coachId' : 'userId';
+        const unsub = onSnapshot(
+            query(collection(db, "conversations"), where(fieldName, "==", currentUser.id)),
+            (snapshot) => {
+                const convos = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Conversation[];
+                convos.sort((a, b) => (b.lastTimestamp || '').localeCompare(a.lastTimestamp || ''));
+                setConversations(convos);
+            },
+            (err) => console.warn("Conversations access restricted:", err.message)
+        );
+        return () => unsub();
     }, [currentUser]);
 
     const login = async (phone: string, password?: string) => {
@@ -459,6 +498,109 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateKnowledgeItem = async (updatedItem: KnowledgeBaseItem) => { const { id, ...data } = updatedItem; await updateDoc(doc(db, "knowledgeBase", id), data); showToast('Q&A updated.', 'success'); };
     const deleteKnowledgeItem = async (id: string) => { await deleteDoc(doc(db, "knowledgeBase", id)); showToast('Q&A deleted.', 'success'); };
 
+    const addLabTest = async (test: Omit<LabTest, 'id'>) => { await addDoc(collection(db, "labTests"), test); showToast('Lab test added.', 'success'); };
+    const updateLabTest = async (test: LabTest) => { const { id, ...data } = test; await updateDoc(doc(db, "labTests", id), data); showToast('Lab test updated.', 'success'); };
+    const deleteLabTest = async (id: string) => { await deleteDoc(doc(db, "labTests", id)); showToast('Lab test deleted.', 'success'); };
+
+    const purchaseLabTest = async (test: LabTest) => {
+        if (!currentUser || currentUser.id === 'guest') return;
+        setIsActionLoading(true);
+        try {
+            const labCartItem: CartItem = {
+                id: `lab-${test.id}`,
+                name: `Lab: ${test.name}`,
+                description: test.description,
+                price: test.price,
+                image: test.image || '',
+                category: 'snack',
+                quantity: 1,
+            };
+            const newOrder: Omit<Order, 'id'> = {
+                userId: currentUser.id,
+                items: [labCartItem],
+                total: test.price,
+                timestamp: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+                status: 'completed'
+            };
+            await addDoc(collection(db, "orders"), newOrder);
+            showToast('Lab test booked successfully.', 'success');
+        } catch (error: any) {
+            showToast(error.message, "error");
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const getConversationId = (userId: string, coachId: string) => `${userId}_${coachId}`;
+
+    const sendPersistentMessage = async (coachId: string, coachName: string, coachAvatar: string | undefined, text: string) => {
+        if (!currentUser || currentUser.id === 'guest' || currentUser.role !== UserRole.USER) return;
+        const conversationId = getConversationId(currentUser.id, coachId);
+        const convoRef = doc(db, "conversations", conversationId);
+        const convoSnap = await getDoc(convoRef);
+        const ts = new Date().toISOString();
+        if (!convoSnap.exists()) {
+            const convo: Conversation = {
+                id: conversationId,
+                userId: currentUser.id,
+                coachId,
+                userName: currentUser.name,
+                coachName,
+                userAvatar: currentUser.avatar || '',
+                coachAvatar: coachAvatar || '',
+                lastMessage: text,
+                lastTimestamp: ts,
+                unreadForCoach: 1,
+                unreadForUser: 0,
+            };
+            await setDoc(convoRef, convo);
+        } else {
+            const data = convoSnap.data() as Conversation;
+            await updateDoc(convoRef, {
+                lastMessage: text,
+                lastTimestamp: ts,
+                unreadForCoach: (data.unreadForCoach || 0) + 1,
+            });
+        }
+        await addDoc(collection(db, "conversations", conversationId, "messages"), {
+            senderId: currentUser.id,
+            senderRole: 'user',
+            text,
+            timestamp: ts,
+        });
+    };
+
+    const sendCoachMessage = async (conversationId: string, text: string) => {
+        if (!currentUser || currentUser.role !== UserRole.COACH) return;
+        const ts = new Date().toISOString();
+        const convoRef = doc(db, "conversations", conversationId);
+        const convoSnap = await getDoc(convoRef);
+        if (convoSnap.exists()) {
+            const data = convoSnap.data() as Conversation;
+            await updateDoc(convoRef, {
+                lastMessage: text,
+                lastTimestamp: ts,
+                unreadForUser: (data.unreadForUser || 0) + 1,
+            });
+        }
+        await addDoc(collection(db, "conversations", conversationId, "messages"), {
+            senderId: currentUser.id,
+            senderRole: 'coach',
+            text,
+            timestamp: ts,
+        });
+    };
+
+    const subscribeToMessages = (conversationId: string, cb: (msgs: PersistentMessage[]) => void) => {
+        const q = query(collection(db, "conversations", conversationId, "messages"), orderBy("timestamp", "asc"));
+        return onSnapshot(q, (snap) => {
+            const msgs = snap.docs.map(d => ({ id: d.id, conversationId, ...d.data() })) as PersistentMessage[];
+            cb(msgs);
+        }, (err) => console.warn("Messages access restricted:", err.message));
+    };
+
+    const clearCart = () => setCart([]);
+
     const getAIResponse = async (userQuestion: string): Promise<string> => {
         const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
         if (!groqApiKey) return language === Language.AR ? "نظام الذكاء الاصطناعي غير متصل حالياً." : "AI system offline.";
@@ -596,8 +738,6 @@ ${knowledgeContext}
         }
     };
 
-    const clearCart = () => setCart([]);
-
     const purchaseCart = async () => {
         if (!currentUser || cart.length === 0) return;
         setIsActionLoading(true);
@@ -664,11 +804,13 @@ ${knowledgeContext}
     return (
         <AppContext.Provider value={{
             currentUser, users, coaches, language, theme, cart, toasts, plan, notifications,
-            isLanguageSelected, marketItems, bannerImages, siteConfig, translations, knowledgeBase, isLoading, isActionLoading,
+            isLanguageSelected, marketItems, labTests, conversations, bannerImages, siteConfig, translations, knowledgeBase, isLoading, isActionLoading,
             isLockedOut, dialog, showDialog, dismissDialog, login, loginAsGuest, logout, register, registerCoach, updateCoach, setLanguage, setIsLanguageSelected,
             setTheme, addToCart, removeFromCart, clearCart, showToast, updatePlan: (p) => setPlan(p), updateDailyPlan,
             updateQuoteStatus, updateUserProfile, showNotification, dismissNotification, addMarketItem,
-            updateMarketItem, deleteMarketItem, addBannerImage, deleteBannerImage, updateBannerImage,
+            updateMarketItem, deleteMarketItem, addLabTest, updateLabTest, deleteLabTest,
+            sendPersistentMessage, sendCoachMessage, subscribeToMessages, purchaseLabTest,
+            addBannerImage, deleteBannerImage, updateBannerImage,
             updateTranslations, updateSiteConfig, addKnowledgeItem, updateKnowledgeItem, deleteKnowledgeItem, getAIResponse, generatePlanWithAI,
             deleteAccount, orders, purchaseCart
         }}>

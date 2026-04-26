@@ -4,6 +4,7 @@ import { AppProvider, useAppContext } from './context/AppContext';
 import MainApp from './components/MainApp';
 import { UserRole } from './types';
 import Admin from './components/Admin';
+import CoachPanel from './components/CoachPanel';
 import CustomDialog from './components/CustomDialog';
 
 const AppContent: React.FC = () => {
@@ -30,6 +31,11 @@ const AppContent: React.FC = () => {
     // Priority Check: If we are logged in as Admin, skip everything else
     if (currentUser?.role === UserRole.ADMIN) {
         return <>{<Admin />}{dialogEl}</>;
+    }
+
+    // Coach panel for coaches/experts
+    if (currentUser?.role === UserRole.COACH) {
+        return <>{<CoachPanel />}{dialogEl}</>;
     }
 
     if (showSplash || isLoading) {

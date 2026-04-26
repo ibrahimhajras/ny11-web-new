@@ -169,3 +169,38 @@ export interface KnowledgeBaseItem {
     answer: string;
     keywords: string[]; // Keywords to help matching if exact match fails
 }
+
+export interface LabTest {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    image?: string;
+    category?: string; // e.g., 'blood', 'hormone', 'vitamin', 'general'
+    duration?: string; // e.g., "24 hours"
+    preparation?: string;
+}
+
+export interface PersistentMessage {
+    id: string;
+    conversationId: string;
+    senderId: string;
+    senderRole: 'user' | 'coach';
+    text: string;
+    timestamp: string;
+    read?: boolean;
+}
+
+export interface Conversation {
+    id: string; // composite e.g., `${userId}_${coachId}`
+    userId: string;
+    coachId: string;
+    userName: string;
+    coachName: string;
+    userAvatar?: string;
+    coachAvatar?: string;
+    lastMessage?: string;
+    lastTimestamp?: string;
+    unreadForUser?: number;
+    unreadForCoach?: number;
+}

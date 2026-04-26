@@ -7,12 +7,13 @@ import Stats from './Stats';
 import Settings from './Settings';
 import ActiveChats from './ActiveChats';
 import OnboardingAndAuth from './OnboardingAndAuth';
+import Lab from './Lab';
 import { useAppContext } from '../context/AppContext';
 import { TranslationSet } from '../constants';
 import { Theme, Language, Notification } from '../types';
 import Orders from './Orders';
 
-type ActivePage = 'dashboard' | 'chat' | 'activeChats' | 'market' | 'stats' | 'settings' | 'orders';
+type ActivePage = 'dashboard' | 'chat' | 'activeChats' | 'market' | 'stats' | 'settings' | 'orders' | 'lab';
 
 const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePage) => void; onLoginClick: () => void }> = ({ activePage, setActivePage, onLoginClick }) => {
     const { language, setLanguage, theme, setTheme, currentUser, logout, translations } = useAppContext();
@@ -31,6 +32,7 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
         { id: 'dashboard', label: t.home, icon: 'ph ph-house' },
         { id: 'chat', label: t.experts, icon: 'ph ph-users' },
         { id: 'market', label: t.market, icon: 'ph ph-shopping-bag' },
+        { id: 'lab', label: t.labsTitle, icon: 'ph ph-test-tube' },
         { id: 'stats', label: t.stats, icon: 'ph ph-chart-bar' },
     ] as const;
 
@@ -149,6 +151,7 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
                                             {item.id === 'dashboard' && '🏠'}
                                             {item.id === 'chat' && '👥'}
                                             {item.id === 'market' && '🛒'}
+                                            {item.id === 'lab' && '🧪'}
                                             {item.id === 'stats' && '📊'}
                                         </span>
                                         {item.label}
@@ -297,6 +300,7 @@ const MainApp: React.FC = () => {
             case 'chat': return <ChatPage />;
             case 'activeChats': return <ActiveChats />;
             case 'market': return <Market />;
+            case 'lab': return <Lab />;
             case 'stats': return <Stats />;
             case 'settings': return <Settings />;
             case 'orders': return <Orders />;
