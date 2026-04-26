@@ -1,5 +1,5 @@
 
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -16,4 +16,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Secondary app used ONLY for creating new accounts (e.g. coaches) from the
+// admin console. Using the primary `auth` for createUserWithEmailAndPassword
+// would automatically sign the admin out and sign the new user in, which
+// breaks both the admin UI and any Firestore writes that depend on the admin
+// session. The secondary app keeps that side-effect isolated.
+const secondaryApp = getApps().find(a => a.name === 'Secondary')
+    || initializeApp(firebaseConfig, 'Secondary');
+export const secondaryAuth = getAuth(secondaryApp);
+
 export default app;
