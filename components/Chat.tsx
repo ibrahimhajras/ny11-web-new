@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Coach, Message, MessageSender, Quote, QuoteStatus } from '../types';
+import { Coach, Message, MessageSender, Quote, QuoteStatus, UserRole, PersistentMessage } from '../types';
 import { useAppContext } from '../context/AppContext';
 
 const QuoteCard: React.FC<{ message: Message; onRespond: (status: QuoteStatus) => void }> = ({ message, onRespond }) => {
@@ -35,8 +35,11 @@ const QuoteCard: React.FC<{ message: Message; onRespond: (status: QuoteStatus) =
 
 
 export const ChatView: React.FC<{ coach: Partial<Coach>; onBack: () => void; isAiOnly?: boolean }> = ({ coach, onBack, isAiOnly }) => {
-    const { updateQuoteStatus, showToast, language, showNotification, translations, getAIResponse } = useAppContext();
+    const { updateQuoteStatus, showToast, language, showNotification, translations, getAIResponse, currentUser, sendPersistentMessage, subscribeToMessages, showDialog } = useAppContext();
     const t = translations[language];
+    const isRealCoach = !isAiOnly && coach.id && coach.id !== 'ny11-ai';
+    const conversationId = isRealCoach && currentUser ? `${currentUser.id}_${coach.id}` : '';
+
     const [messages, setMessages] = useState<Message[]>([
         { id: '1', sender: MessageSender.COACH, text: `Hello! I'm ${coach.name}. How can I help you achieve your health goals today?`, timestamp: new Date().toISOString() }
     ]);
@@ -48,9 +51,41 @@ export const ChatView: React.FC<{ coach: Partial<Coach>; onBack: () => void; isA
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isTyping]);
 
+    useEffect(() => {
+        if (!isRealCoach || !conversationId) return;
+        const unsub = subscribeToMessages(conversationId, (msgs: PersistentMessage[]) => {
+            const mapped: Message[] = msgs.map(m => ({
+                id: m.id,
+                sender: m.senderRole === 'user' ? MessageSender.USER : MessageSender.COACH,
+                text: m.text,
+                timestamp: m.timestamp,
+            }));
+            if (mapped.length === 0) {
+                setMessages([{ id: 'welcome', sender: MessageSender.COACH, text: `Hello! I'm ${coach.name}. How can I help?`, timestamp: new Date().toISOString() }]);
+            } else {
+                setMessages(mapped);
+            }
+        });
+        return () => unsub();
+    }, [conversationId, isRealCoach]);
+
     const handleSend = async () => {
         if (input.trim() === '') return;
-        
+
+        if (isRealCoach) {
+            if (!currentUser || currentUser.id === 'guest') {
+                showToast(t.loginToContinue, 'error');
+                return;
+            }
+            try {
+                await sendPersistentMessage(coach.id!, coach.name || '', coach.avatar, input);
+                setInput('');
+            } catch (err: any) {
+                showToast(err.message || 'Failed to send message', 'error');
+            }
+            return;
+        }
+
         const userMessage: Message = {
             id: `user-${Date.now()}`,
             sender: MessageSender.USER,
@@ -78,33 +113,7 @@ export const ChatView: React.FC<{ coach: Partial<Coach>; onBack: () => void; isA
                 setIsTyping(false);
             }
         } else {
-            setTimeout(() => {
-                const coachResponseText = "Based on your goals, I recommend a personalized nutrition and workout plan. I can create one for you. Here is the quote.";
-                const coachResponse: Message = {
-                    id: `coach-${Date.now()}`,
-                    sender: MessageSender.COACH,
-                    text: coachResponseText,
-                    timestamp: new Date().toISOString(),
-                };
-                
-                const quoteMessage: Message = {
-                    id: `quote-${Date.now()}`,
-                    sender: MessageSender.COACH,
-                    timestamp: new Date().toISOString(),
-                    quote: {
-                        amount: 99.99,
-                        service: "1-Month Personalized Plan",
-                        status: QuoteStatus.PENDING,
-                    }
-                };
-                setMessages(prev => [...prev, coachResponse, quoteMessage]);
-                showNotification({
-                    title: t.newMessageFrom.replace('{name}', coach.name || ''),
-                    body: coachResponseText,
-                    icon: (coach.name || '').charAt(0)
-                });
-                setIsTyping(false);
-            }, 1500);
+            setIsTyping(false);
         }
     };
 

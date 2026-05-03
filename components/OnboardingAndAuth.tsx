@@ -244,8 +244,13 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                                 {language === Language.AR ? "محاولات كثيرة جداً. يرجى الانتظار قليلاً." : "Too many attempts. Please wait a bit."}
                              </p>
                         )}
-                        <input type="tel" name="phone" value={userFormData.phone} onChange={handleInputChange} placeholder={t.phonePlaceholder} className="w-full p-3 mb-3 rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:ring-2 focus:ring-brand-green outline-none" />
+                        <input type="text" name="phone" value={userFormData.phone} onChange={handleInputChange} placeholder={language === Language.AR ? 'رقم الهاتف أو البريد الإلكتروني' : 'Phone or email'} className="w-full p-3 mb-3 rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:ring-2 focus:ring-brand-green outline-none" />
                         <input type="password" name="password" value={userFormData.password} onChange={handleInputChange} placeholder={t.passwordPlaceholder} className="w-full p-3 rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:ring-2 focus:ring-brand-green outline-none" />
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
+                            {language === Language.AR
+                                ? 'العملاء يدخلون برقم الهاتف. المدربون يدخلون بالبريد الإلكتروني المسجَّل من قِبَل الإدارة.'
+                                : 'Customers sign in with their phone. Coaches sign in with the email the admin registered.'}
+                        </p>
                         
                         <div className="flex gap-4 mt-4">
                             <button 
